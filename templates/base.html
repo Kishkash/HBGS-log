@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title or "HBGS" }}</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: system-ui, Arial, sans-serif;
+            background: #fafafa;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Top bar */
+        .topbar {
+            background: #e67e22; /* warm orange */
+            color: white;
+            padding: 14px 20px;
+            font-size: 22px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .topbar a {
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        /* Centered content container */
+        .container {
+            width: 100%;
+            max-width: 900px;
+            margin: 30px auto;
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            flex: 1;
+        }
+
+        footer {
+            text-align: center;
+            padding: 12px;
+            background: #f0f0f0;
+            border-top: 1px solid #ddd;
+        }
+
+        footer img {
+            max-width: 150px;
+            opacity: 0.85;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 18px;
+        }
+
+        th, td {
+            border-bottom: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        th {
+            background: #f7f7f7;
+        }
+
+        button {
+            background: #e67e22;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #cf6d17;
+        }
+
+        input, select {
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        h1, h2 {
+            margin-top: 0;
+        }
+    </style>
+
+    {% block head %}{% endblock %}
+</head>
+
+<body>
+
+    <div class="topbar">
+        <div>
+            <a href="/" style="color:white; text-decoration:none;">
+                Highgate Board Game Society
+            </a>
+        </div>
+
+
+        <div>
+            {% if session.get("is_admin") %}
+                <a href="/admin">Admin</a> |
+                <a href="/admin/logout">Logout</a>
+            {% else %}
+                <a href="/admin">Admin Login</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer>
+        <a href="https://boardgamegeek.com/" target="_blank">
+            <img src="/static/img/powered-by-bgg-rgb.svg" alt="Powered by BGG">
+        </a>
+    </footer>
+
+</body>
+</html>

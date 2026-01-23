@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Admin Dashboard</h1>
+
+<h2>Users</h2>
+<ul>
+    {% for u in users %}
+        <li>
+            <span class="{{ 'active' if u.is_active else 'inactive' }}">
+                {{ u.username }} ({{ 'active' if u.is_active else 'inactive' }})
+            </span>
+            — last full scan: {{ u.last_full_scan or "never" }}
+
+            {% if u.is_active %}
+                <button onclick="fullScan('{{ u.username }}')">Full Scan</button>
+                <button onclick="deactivateUser({{ u.id }})">Deactivate</button>
+            {% else %}
+                <button onclick="reactivateUser('{{ u.username }}')">Reactivate</button>
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>
+
+<h2>Add User</h2>
+<input id="newUser" placeholder="BGG username">
+<button onclick="addUser()">Add</button>
+
+<h2>Maintenance Tools</h2>
+<button onclick="fixMissingImages()">Fix Missing Images</button>
+<button onclick="runCronNow()">Run Cron Now</button>
+
+<script>
+    async function addUser() {
+        const username = document.getElementById("newUser").value.trim();
+        if (!username) return;
+        await fetch("/api/admin/users", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({username})
+        });
+        location.reload();
+    }
+
+    async function deactivateUser(id) {
+        await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+        location.reload();
+    }
+
+    async function reactivateUser(username) {
+        await fetch("/api/admin/users", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ username })
+        });
+        location.reload();
+    }
+
+    async function fullScan(username) {
+        await fetch(`/api/admin/fullscan/${username}`, { method: "POST" });
+        alert("Full scan complete for " + username);
+        location.reload();
+    }
+
+    async function fixMissingImages() {
+        await fetch("/api/admin/fix_missing_images", { method: "POST" });
+        alert("Missing images fixed");
+        location.reload();
+    }
+
+    async function runCronNow() {
+        await fetch("/api/admin/run_cron", { method: "POST" });
+        alert("Cron executed");
+        location.reload();
+    }
+</script>
+
+{% endblock %}
