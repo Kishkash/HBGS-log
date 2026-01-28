@@ -51,7 +51,7 @@
         dateWrap.style.display = (p === 'date') ? 'inline' : 'none';
     });
 
-    document.getElementById('load').addEventListener('click', async () => {
+    async function loadStats() {
         const period = periodEl.value;
         const params = new URLSearchParams({ period });
 
@@ -86,6 +86,19 @@
             `;
             tbody.appendChild(tr);
         });
+    }
+
+    // One single DOMContentLoaded block
+    document.addEventListener('DOMContentLoaded', () => {
+        // Hide all inputs on first load
+        yearWrap.style.display = 'none';
+        monthWrap.style.display = 'none';
+        dateWrap.style.display = 'none';
+
+        // Load overall stats automatically
+        loadStats();
     });
+
+    document.getElementById('load').addEventListener('click', loadStats);
 </script>
 {% endblock %}

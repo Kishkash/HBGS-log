@@ -227,7 +227,6 @@ def api_run_cron():
 
 
 # ---------- BGG fetching & cron endpoint ----------
-# TODO: distinguish between full scan and normal 14 days scan
 def fetch_plays_for_user(username: str, user_id: int, full_scan: bool):
     # Re-scan window (days)
     if full_scan:
@@ -307,8 +306,8 @@ def update_plays(plays, full_scan: bool):
     for p in plays:
         # Insert play if not already present
         exists = db.execute(
-            "SELECT 1 FROM plays WHERE game_id=? AND play_date=? AND user_id=?",
-            (p["game_id"], p["play_date"], p["user_id"])
+            "SELECT 1 FROM plays WHERE id=?",
+            (p["id"],)
         ).fetchone()
 
         # Remove if location changed
@@ -352,7 +351,6 @@ def update_plays(plays, full_scan: bool):
                 )
             )
 
-    # TODO: Check this
     # --- NEW: detect deleted plays ---
     if plays:
         user_id = plays[0]["user_id"]
@@ -468,7 +466,6 @@ def index():
 
 
 # ---------- Stats API ----------
-# TODO: Update stats
 @app.route("/api/stats", methods=["GET"])
 def stats():
     period = request.args.get("period", "overall")  # overall, year, month, date
