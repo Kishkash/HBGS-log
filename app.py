@@ -223,7 +223,7 @@ def api_run_cron():
     # Call existing cron logic
     response = cron_update()
 
-    return jsonify({"status": "cron executed", "details": response.json})
+    return jsonify({"status": "cron executed", "details": response})
 
 
 # ---------- BGG fetching & cron endpoint ----------
@@ -423,21 +423,14 @@ def fetch_game_info(game_id: int):
     }
 
 
-@app.route("/cron/update", methods=["POST"])
 def cron_update():
     print("CRON UPDATE CALLED")
-
-    # Only enforce token if this is an actual HTTP request to /cron/update
-    if request.endpoint == "cron_update":
-        token = request.headers.get("X-Cron-Token")
-        if token != os.environ.get("CRON_TOKEN"):
-            abort(401, "Unauthorized")
 
     db = get_db()
     users = db.execute("SELECT username, id, last_full_scan FROM bgg_users WHERE is_active=1").fetchall()
 
     if not users:
-        return jsonify({"status": "No active users"})
+        return {"status": "No active users"}
 
     # Fetch and update plays for each user
     for row in users:
@@ -455,7 +448,7 @@ def cron_update():
             )
             db.commit()
 
-    return jsonify({"status": "ok"})
+    return {"status": "ok"}
 
 
 # ---------- INDEX ----------
