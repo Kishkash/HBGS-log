@@ -1,34 +1,35 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Group Board Game Stats</h1>
 
-<label>
-    Period:
-    <select id="period">
+<h1 class="mb-3">Game Stats</h1>
+
+<div class="mb-3">
+    <label class="form-label">Period:</label>
+    <select id="period" class="form-select w-auto d-inline-block">
         <option value="overall">Overall</option>
         <option value="year">Year</option>
         <option value="month">Month</option>
         <option value="date">Date</option>
     </select>
-</label>
 
-<span id="year-wrap">
-    Year: <input type="number" id="year" min="2000" max="2100">
-</span>
+    <span id="year-wrap" class="ms-3">
+        Year: <input type="number" id="year" min="2000" max="2100" class="form-control d-inline-block w-auto">
+    </span>
 
-<span id="month-wrap" style="display:none;">
-    Month: <input type="number" id="month" min="1" max="12">
-</span>
+    <span id="month-wrap" class="ms-3" style="display:none;">
+        Month: <input type="number" id="month" min="1" max="12" class="form-control d-inline-block w-auto">
+    </span>
 
-<span id="date-wrap" style="display:none;">
-    Date: <input type="date" id="date">
-</span>
+    <span id="date-wrap" class="ms-3" style="display:none;">
+        Date: <input type="date" id="date" class="form-control d-inline-block w-auto">
+    </span>
 
-<button id="load">Load</button>
+    <button id="load" class="btn btn-warning ms-3">Load</button>
+</div>
 
-<div class="table-wrapper">
-    <table>
-        <thead>
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead class="table-light">
             <tr>
                 <th>#</th>
                 <th>Box</th>
@@ -82,25 +83,22 @@
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${row.index}</td>
-                <td>${row.image_url ? `<img src="${row.image_url}" style="max-width:50px">` : ''}</td>
-                <td>${row.game_name}</td>
+                <td>${row.image_url ? `<img src="${row.image_url}" class="img-fluid" style="max-width:50px">` : ''}</td>
+                <td style="white-space: normal; word-break: break-word;">${row.game_name}</td>
                 <td>${row.plays}</td>
             `;
             tbody.appendChild(tr);
         });
     }
 
-    // One single DOMContentLoaded block
     document.addEventListener('DOMContentLoaded', () => {
-        // Hide all inputs on first load
         yearWrap.style.display = 'none';
         monthWrap.style.display = 'none';
         dateWrap.style.display = 'none';
-
-        // Load overall stats automatically
         loadStats();
     });
 
     document.getElementById('load').addEventListener('click', loadStats);
 </script>
+
 {% endblock %}

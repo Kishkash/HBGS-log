@@ -5,46 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title or "HBGS" }}</title>
 
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
         body {
-            margin: 0;
-            font-family: system-ui, Arial, sans-serif;
             background: #fafafa;
             color: #333;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            overflow-x: hidden;
         }
 
-        /* Top bar */
         .topbar {
-            background: #e67e22; /* warm orange */
+            background: #e67e22;
             color: white;
             padding: 14px 20px;
             font-size: 22px;
             font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
 
         .topbar a {
             color: white;
             text-decoration: none;
             font-size: 14px;
-        }
-
-        /* Centered content container */
-        .container {
-            width: 100%;
-            max-width: 900px;
-            margin: 30px auto;
-            background: white;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-            flex: 1;
         }
 
         footer {
@@ -58,81 +39,17 @@
             max-width: 150px;
             opacity: 0.85;
         }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 18px;
-        }
-
-        table img {
-        max-width: 50px;
-        height: auto;
-        }
-
-        /* Wrap table in a scroll container */
-        .table-wrapper {
-            overflow-x: auto;
-            width: 100%;
-        }
-
-        /* Make the filter controls wrap nicely */
-        #year-wrap,
-        #month-wrap,
-        #date-wrap {
-            display: inline-block;
-            margin-top: 8px;
-            max-width: 100%;
-            white-space: nowrap;
-        }
-
-        th, td {
-            border-bottom: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-            white-space: normal;
-        }
-
-        th {
-            background: #f7f7f7;
-        }
-
-        button {
-            background: #e67e22;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #cf6d17;
-        }
-
-        input, select {
-            padding: 6px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-        }
-
-        h1, h2 {
-            margin-top: 0;
-        }
     </style>
 
     {% block head %}{% endblock %}
 </head>
 
-<body>
+<body class="d-flex flex-column min-vh-100">
 
-    <div class="topbar">
+    <div class="topbar d-flex justify-content-between align-items-center">
         <div>
-            <a href="/" style="color:white; text-decoration:none;">
-                Highgate Board Game Society
-            </a>
+            <a href="/">Highgate Board Game Society</a>
         </div>
-
 
         <div>
             {% if session.get("is_admin") %}
@@ -144,7 +61,7 @@
         </div>
     </div>
 
-    <div class="container">
+    <div class="container my-4 flex-grow-1">
         {% block content %}{% endblock %}
     </div>
 
@@ -153,6 +70,9 @@
             <img src="/static/img/powered-by-bgg-rgb.svg" alt="Powered by BGG">
         </a>
     </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>
