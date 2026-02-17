@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Admin Dashboard</h2>
+
+<!-- Users Section -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+
+        <h5 class="card-title mb-3">Users</h5>
+
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Username</th>
+                        <th>Status</th>
+                        <th>Last Full Scan</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td>{{ u.username }}</td>
+                        <td>
+                            {% if u.is_active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ u.last_full_scan or "Never" }}</td>
+                        <td class="text-end">
+
+                            {% if u.is_active %}
+                                <button class="btn btn-sm btn-outline-primary"
+                                        onclick="fullScan('{{ u.username }}')">
+                                    Full Scan
+                                </button>
+
+                                <button class="btn btn-sm btn-outline-danger"
+                                        onclick="deactivateUser({{ u.id }})">
+                                    Deactivate
+                                </button>
+                            {% else %}
+                                <button class="btn btn-sm btn-outline-success"
+                                        onclick="reactivateUser('{{ u.username }}')">
+                                    Reactivate
+                                </button>
+                            {% endif %}
+
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<!-- Add User Section -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+
+        <h5 class="card-title mb-3">Add User</h5>
+
+        <div class="input-group">
+            <input id="newUser"
+                   class="form-control"
+                   placeholder="BGG username">
+            <button class="btn btn-primary" onclick="addUser()">
+                Add User
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<!-- Maintenance Section -->
+<div class="card shadow-sm">
+    <div class="card-body">
+
+        <h5 class="card-title mb-3">Maintenance Tools</h5>
+
+        <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-secondary"
+                    onclick="fixMissingImages()">
+                Fix Missing Images
+            </button>
+
+            <button class="btn btn-outline-secondary"
+                    onclick="runCronNow()">
+                Run Cron Now
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    async function addUser() {
+        const username = document.getElementById("newUser").value.trim();
+        if (!username) return;
+        await fetch("/api/admin/users", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({username})
+        });
+        location.reload();
+    }
+
+    async function deactivateUser(id) {
+        await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+        location.reload();
+    }
+
+    async function reactivateUser(username) {
+        await fetch("/api/admin/users", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ username })
+        });
+        location.reload();
+    }
+
+    async function fullScan(username) {
+        await fetch(`/api/admin/fullscan/${username}`, { method: "POST" });
+        alert("Full scan complete for " + username);
+        location.reload();
+    }
+
+    async function fixMissingImages() {
+        await fetch("/api/admin/fix_missing_images", { method: "POST" });
+        alert("Missing images fixed");
+        location.reload();
+    }
+
+    async function runCronNow() {
+        await fetch("/api/admin/run_cron", { method: "POST" });
+        alert("Cron executed");
+        location.reload();
+    }
+</script>
+
+{% endblock %}

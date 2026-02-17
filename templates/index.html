@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1 class="mb-3">Game Stats</h1>
+
+<div class="mb-3">
+    <label class="form-label">Period:</label>
+    <select id="period" class="form-select w-auto d-inline-block">
+        <option value="overall">Overall</option>
+        <option value="year">Year</option>
+        <option value="month">Month</option>
+        <option value="date">Date</option>
+    </select>
+
+    <span id="year-wrap" class="ms-3">
+        Year: <input type="number" id="year" min="2000" max="2100" class="form-control d-inline-block w-auto">
+    </span>
+
+    <span id="month-wrap" class="ms-3" style="display:none;">
+        Month: <input type="number" id="month" min="1" max="12" class="form-control d-inline-block w-auto">
+    </span>
+
+    <span id="date-wrap" class="ms-3" style="display:none;">
+        Date: <input type="date" id="date" class="form-control d-inline-block w-auto">
+    </span>
+
+    <button id="load" class="btn btn-warning ms-3">Load</button>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>#</th>
+                <th>Box</th>
+                <th>Game</th>
+                <th>Plays</th>
+            </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+    </table>
+</div>
+
+<script>
+    const periodEl = document.getElementById('period');
+    const yearWrap = document.getElementById('year-wrap');
+    const monthWrap = document.getElementById('month-wrap');
+    const dateWrap = document.getElementById('date-wrap');
+
+    periodEl.addEventListener('change', () => {
+        const p = periodEl.value;
+        yearWrap.style.display = (p === 'year' || p === 'month') ? 'inline' : 'none';
+        monthWrap.style.display = (p === 'month') ? 'inline' : 'none';
+        dateWrap.style.display = (p === 'date') ? 'inline' : 'none';
+    });
+
+    async function loadStats() {
+        const period = periodEl.value;
+        const params = new URLSearchParams({ period });
+
+        if (period === 'year') {
+            const y = document.getElementById('year').value;
+            if (!y) return alert("Enter year");
+            params.append('year', y);
+        } else if (period === 'month') {
+            const y = document.getElementById('year').value;
+            const m = document.getElementById('month').value;
+            if (!y || !m) return alert("Enter year and month");
+            params.append('year', y);
+            params.append('month', m);
+        } else if (period === 'date') {
+            const d = document.getElementById('date').value;
+            if (!d) return alert("Select date");
+            params.append('date', d);
+        }
+
+        const res = await fetch('/api/stats?' + params.toString());
+        const data = await res.json();
+        const tbody = document.getElementById('tbody');
+        tbody.innerHTML = '';
+
+        data.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${row.index}</td>
+                <td>${row.image_url ? `<img src="${row.image_url}" class="img-fluid" style="max-width:50px">` : ''}</td>
+                <td style="white-space: normal; word-break: break-word;">${row.game_name}</td>
+                <td>${row.plays}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        yearWrap.style.display = 'none';
+        monthWrap.style.display = 'none';
+        dateWrap.style.display = 'none';
+        loadStats();
+    });
+
+    document.getElementById('load').addEventListener('click', loadStats);
+</script>
+
+{% endblock %}
