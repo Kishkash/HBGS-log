@@ -6,7 +6,7 @@ from flask import session, redirect, url_for
 from functools import wraps
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, g, abort, send_from_directory, render_template
+from flask import Flask, request, jsonify, g, abort, render_template
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -29,6 +29,7 @@ def get_db():
     if "db" not in g:
         g.db = sqlite3.connect(DB_PATH)
         g.db.row_factory = sqlite3.Row
+        g.db.execute("PRAGMA foreign_keys = ON;")
     return g.db
 
 
@@ -72,7 +73,7 @@ def require_admin_page(func):
 def admin_dashboard():
 
     db = get_db()
-    users = db.execute("SELECT id, username, is_active, last_full_scan FROM bgg_users ORDER BY username").fetchall()
+    users = db.execute("SELECT id, username, last_full_scan FROM bgg_users ORDER BY username").fetchall()
 
     return render_template("admin_dashboard.html", users=users)
 
@@ -100,7 +101,7 @@ def admin_logout():
 def list_users():
     db = get_db()
     rows = db.execute(
-        "SELECT id, username, is_active, last_full_scan FROM bgg_users ORDER BY username"
+        "SELECT id, username, last_full_scan FROM bgg_users ORDER BY username"
     ).fetchall()
     return jsonify([dict(r) for r in rows])
 
@@ -122,17 +123,11 @@ def add_user():
     ).fetchone()
 
     if existing:
-        # Reactivate user
-        db.execute(
-            "UPDATE bgg_users SET is_active=1 WHERE username=?",
-            (username,)
-        )
-        db.commit()
-        return jsonify({"status": "reactivated"})
+        return jsonify({"status": "user exists"})
 
     # Create new user
     db.execute(
-        "INSERT INTO bgg_users (username, is_active, last_full_scan) VALUES (?, 1, Null)",
+        "INSERT INTO bgg_users (username, last_full_scan) VALUES (?, Null)",
         (username,)
     )
     db.commit()
@@ -144,11 +139,11 @@ def add_user():
 def delete_user(user_id):
     db = get_db()
     db.execute(
-        "UPDATE bgg_users SET is_active=0 WHERE id=?",
+        "DELETE FROM bgg_users WHERE id=?",
         (user_id,)
     )
     db.commit()
-    return jsonify({"status": "deactivated"})
+    return jsonify({"status": "deleted"})
 
 
 @app.route("/api/admin/fullscan/<username>", methods=["POST"])
@@ -158,7 +153,7 @@ def admin_full_scan(username):
 
     # Get user id
     user = db.execute(
-        "SELECT id FROM bgg_users WHERE username=? AND is_active=1",
+        "SELECT id FROM bgg_users WHERE username=?",
         (username,)
     ).fetchone()
 
@@ -188,33 +183,6 @@ def admin_full_scan(username):
     db.commit()
 
     return jsonify({"status": "full scan complete", "user": username})
-
-
-@app.route("/api/admin/fix_missing_images", methods=["POST"])
-@require_admin
-def api_fix_missing_images():
-    db = get_db()
-
-    rows = db.execute(
-        "SELECT id FROM games WHERE image_url IS NULL OR image_url = ''"
-    ).fetchall()
-
-    fixed = 0
-
-    for row in rows:
-        game_id = row["id"]
-        info = fetch_game_info(game_id)
-
-        if info["image_url"]:
-            db.execute(
-                "UPDATE games SET image_url=? WHERE id=?",
-                (info["image_url"], game_id)
-            )
-            fixed += 1
-
-    db.commit()
-
-    return jsonify({"status": "ok", "fixed": fixed})
 
 
 @app.route("/api/admin/run_cron", methods=["POST"])
@@ -272,7 +240,7 @@ def fetch_plays_for_user(username: str, user_id: int, full_scan: bool):
             play_id = int(p.attrib.get("id"))
             play_date = p.attrib.get("date")
 
-            # Stop if the play is older than our re-scan window
+            # Stop if the play is older than the re-scan window
             if play_date < cutoff_date:
                 print("Reached cutoff date:", play_date)
                 return new_plays
@@ -285,6 +253,8 @@ def fetch_plays_for_user(username: str, user_id: int, full_scan: bool):
                 continue
 
             game_id = int(item.attrib.get("objectid"))
+
+            # TODO: check game exists?
 
             new_plays.append({
                 "id": play_id,
@@ -318,11 +288,6 @@ def update_plays(plays, full_scan: bool):
             )
             continue
         elif not exists and p["location"] == GAME_LOCATION:
-            db.execute(
-                "INSERT INTO plays (id, game_id, play_date, user_id) VALUES (?, ?, ?, ?)",
-                (p["id"], p["game_id"], p["play_date"], p["user_id"])
-            )
-
             # Ensure game exists in games table
             game = db.execute(
                 "SELECT id FROM games WHERE id=?",
@@ -336,6 +301,12 @@ def update_plays(plays, full_scan: bool):
                     "INSERT INTO games (id, name, image_url) VALUES (?, ?, ?)",
                     (p["game_id"], info["name"], info["image_url"])
                 )
+
+            db.execute(
+                "INSERT INTO plays (id, game_id, play_date, user_id) VALUES (?, ?, ?, ?)",
+                (p["id"], p["game_id"], p["play_date"], p["user_id"])
+            )
+
         else:
             # Update the old entry if anything changed
             db.execute(
@@ -351,7 +322,7 @@ def update_plays(plays, full_scan: bool):
                 )
             )
 
-    # --- NEW: detect deleted plays ---
+    # --- Detect deleted plays ---
     if plays:
         user_id = plays[0]["user_id"]
 
@@ -427,7 +398,7 @@ def cron_update():
     print("CRON UPDATE CALLED")
 
     db = get_db()
-    users = db.execute("SELECT username, id, last_full_scan FROM bgg_users WHERE is_active=1").fetchall()
+    users = db.execute("SELECT username, id, last_full_scan FROM bgg_users").fetchall()
 
     if not users:
         return {"status": "No active users"}
