@@ -458,12 +458,13 @@ def stats():
             plays.game_id,
             games.name,
             games.image_url,
-            COUNT(*) AS plays
+            COUNT(*) AS plays,
+            MAX(plays.play_date) AS last_play_date
         FROM plays
         JOIN games ON plays.game_id = games.id
         {where_clause}
         GROUP BY plays.game_id, games.name, games.image_url
-        ORDER BY plays DESC
+        ORDER BY plays DESC, last_play_date DESC
     """
 
     rows = db.execute(sql, params).fetchall()
