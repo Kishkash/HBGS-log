@@ -5,13 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title or "HBGS" }}</title>
 
-    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Modern free font -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;400&display=swap" rel="stylesheet">
 
     <style>
         body {
             background: #fafafa;
             color: #333;
+            padding-top: 60px;      /* space for fixed top bar */
+            padding-bottom: 70px;   /* space for fixed footer */
+        }
+
+        .bg-orange {
+            background-color: #e67e22 !important;=
         }
 
         .topbar {
@@ -20,6 +28,11 @@
             padding: 14px 20px;
             font-size: 22px;
             font-weight: bold;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1030;          /* above content */
         }
 
         .topbar a {
@@ -28,17 +41,76 @@
             font-size: 14px;
         }
 
+        /* Brighter white links */
+        .navbar-dark .navbar-nav .nav-link {
+            color: #ffffff !important;
+            font-weight: 500;
+        }
+
+
         footer {
             text-align: center;
             padding: 12px;
             background: #f0f0f0;
             border-top: 1px solid #ddd;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1030;
         }
 
         footer img {
             max-width: 150px;
             opacity: 0.85;
         }
+
+        .hero-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 2.0rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 0.3rem;
+        }
+
+        .hero-subtitle {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 400;
+            text-align: center;
+            margin-top: 2.2rem;
+            margin-bottom: 3.2rem;
+            color: #444;
+        }
+
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .game-img {
+            border-radius: 8px;
+            object-fit: cover;
+            width: 100%;
+        }
+
+        .collage-scroll-container {
+            max-height: 60vh;          /* vertical limit */
+            overflow-y: auto;          /* vertical scroll only */
+            overflow-x: hidden;        /* prevent horizontal scroll */
+            padding-right: 6px;        /* space for scrollbar */
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #fff;
+        }
+        /* Only apply on large screens and up */
+        @media (min-width: 992px) {
+            .games-section-lower {
+                margin-top: 20vh;
+            }
+        }
+
     </style>
 
     {% block head %}{% endblock %}
@@ -46,32 +118,45 @@
 
 <body class="d-flex flex-column min-vh-100">
 
-    <div class="topbar d-flex justify-content-between align-items-center">
-        <div>
-            <a href="/">Highgate Board Game Society</a>
-        </div>
+    <!-- Orange Bootstrap Navbar -->
+    <nav class="navbar navbar-dark bg-orange fixed-top no-collapse">
+        <div class="container-fluid d-flex justify-content-between">
 
-        <div>
-            {% if session.get("is_admin") %}
-                <a href="/admin">Admin</a> |
-                <a href="/admin/logout">Logout</a>
-            {% else %}
-                <a href="/admin">Admin Login</a>
-            {% endif %}
-        </div>
-    </div>
+            <!-- Left side links -->
+            <div class="navbar-nav flex-row gap-3">
+                <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                <a class="nav-link" href="{{ url_for('game_stats') }}">Stats</a>
+                <a class="nav-link" href="{{ url_for('contact') }}">Contact</a>
+            </div>
 
-    <div class="container my-4 flex-grow-1">
+            <!-- Right side admin links -->
+            <div class="navbar-nav flex-row gap-3">
+                {% if session.get("is_admin") %}
+                    <a class="nav-link" href="/admin">Admin</a>
+                    <a class="nav-link" href="/admin/logout">Logout</a>
+                {% else %}
+                    <a class="nav-link" href="/admin">Admin Login</a>
+                {% endif %}
+            </div>
+
+        </div>
+    </nav>
+
+
+
+    <!-- Main content with padding to avoid overlap -->
+    <div class="container my-4 flex-grow-1" style="padding-top: 80px;">
         {% block content %}{% endblock %}
     </div>
 
-    <footer>
+    <!-- Fixed footer -->
+    <footer class="bg-light text-center py-3 fixed-bottom border-top">
         <a href="https://boardgamegeek.com/" target="_blank">
-            <img src="/static/img/powered-by-bgg-rgb.svg" alt="Powered by BGG">
+            <img src="/static/img/powered-by-bgg-rgb.svg" alt="Powered by BGG"
+                 style="max-width: 150px; opacity: 0.85;">
         </a>
     </footer>
 
-    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>

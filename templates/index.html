@@ -1,105 +1,78 @@
 {% extends "base.html" %}
+
 {% block content %}
 
-<h1 class="mb-3">Game Stats</h1>
+    <div class="text-center mb-4">
+        <div class="hero-title">Highgate Board Game Society</div>
+        <div class="hero-subtitle"><a href="{{ url_for('contact') }}">Join us</a> for a game every Monday at 7:30pm
+        </div>
+    </div>
 
-<div class="mb-3">
-    <label class="form-label">Period:</label>
-    <select id="period" class="form-select w-auto d-inline-block">
-        <option value="overall">Overall</option>
-        <option value="year">Year</option>
-        <option value="month">Month</option>
-        <option value="date">Date</option>
-    </select>
+    <div class="games-section-lower">
+        <div class="section-title text-center">Games played last week:</div>
 
-    <span id="year-wrap" class="ms-3">
-        Year: <input type="number" id="year" min="2000" max="2100" class="form-control d-inline-block w-auto">
-    </span>
+        <!-- Collage container -->
 
-    <span id="month-wrap" class="ms-3" style="display:none;">
-        Month: <input type="number" id="month" min="1" max="12" class="form-control d-inline-block w-auto">
-    </span>
+        <div id="games-grid"
+             class="row justify-content-center row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-3">
+            <!-- JS will insert <div class="col"><img ...></div> here -->
+        </div>
+    </div>
 
-    <span id="date-wrap" class="ms-3" style="display:none;">
-        Date: <input type="date" id="date" class="form-control d-inline-block w-auto">
-    </span>
 
-    <button id="load" class="btn btn-warning ms-3">Load</button>
-</div>
+    <script>
+    // Returns YYYY-MM-DD for:
+    // - last week's Monday if today is Monday
+    // - this week's Monday otherwise
+    function getRelevantMonday() {
+        const today = new Date();
+        const day = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
 
-<!-- height scrollable container -->
-<div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
-    <table class="table table-striped align-middle">
-        <thead class="table-light" style="position: sticky; top: 0; z-index: 2;">
-            <tr>
-                <th>#</th>
-                <th>Box</th>
-                <th>Game</th>
-                <th>Plays</th>
-            </tr>
-        </thead>
-        <tbody id="tbody"></tbody>
-    </table>
-</div>
+        const monday = new Date();
 
-<script>
-    const periodEl = document.getElementById('period');
-    const yearWrap = document.getElementById('year-wrap');
-    const monthWrap = document.getElementById('month-wrap');
-    const dateWrap = document.getElementById('date-wrap');
-
-    periodEl.addEventListener('change', () => {
-        const p = periodEl.value;
-        yearWrap.style.display = (p === 'year' || p === 'month') ? 'inline' : 'none';
-        monthWrap.style.display = (p === 'month') ? 'inline' : 'none';
-        dateWrap.style.display = (p === 'date') ? 'inline' : 'none';
-    });
-
-    async function loadStats() {
-        const period = periodEl.value;
-        const params = new URLSearchParams({ period });
-
-        if (period === 'year') {
-            const y = document.getElementById('year').value;
-            if (!y) return alert("Enter year");
-            params.append('year', y);
-        } else if (period === 'month') {
-            const y = document.getElementById('year').value;
-            const m = document.getElementById('month').value;
-            if (!y || !m) return alert("Enter year and month");
-            params.append('year', y);
-            params.append('month', m);
-        } else if (period === 'date') {
-            const d = document.getElementById('date').value;
-            if (!d) return alert("Select date");
-            params.append('date', d);
+        if (day === 1) {
+            // Today is Monday → go back 7 days
+            monday.setDate(today.getDate() - 7);
+        } else {
+            // Any other day → go back to this week's Monday
+            // Sunday (0) should go back 6 days
+            const daysSinceMonday = (day === 0) ? 6 : (day - 1);
+            monday.setDate(today.getDate() - daysSinceMonday);
         }
 
-        const res = await fetch('/api/stats?' + params.toString());
-        const data = await res.json();
-        const tbody = document.getElementById('tbody');
-        tbody.innerHTML = '';
-
-        data.forEach(row => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${row.index}</td>
-                <td>${row.image_url ? `<img src="${row.image_url}" class="img-fluid" style="max-width:50px">` : ''}</td>
-                <td style="white-space: normal; word-break: break-word;">${row.game_name}</td>
-                <td>${row.plays}</td>
-            `;
-            tbody.appendChild(tr);
-        });
+        return monday.toISOString().slice(0, 10);
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        yearWrap.style.display = 'none';
-        monthWrap.style.display = 'none';
-        dateWrap.style.display = 'none';
-        loadStats();
-    });
+    async function loadGames() {
+        const date = getRelevantMonday();
+        const url = `/api/stats?period=date&date=${date}`;
 
-    document.getElementById('load').addEventListener('click', loadStats);
-</script>
+        try {
+            const response = await fetch(url);
+            const games = await response.json();
+
+            const grid = document.getElementById("games-grid");
+            grid.innerHTML = "";
+
+            games.forEach(game => {
+                const col = document.createElement("div");
+                col.className = "col";
+
+                col.innerHTML = `
+                    <img src="${game.image_url}"
+                         alt="${game.game_name}"
+                         class="img-fluid game-img">
+                `;
+
+                grid.appendChild(col);
+            });
+
+        } catch (err) {
+            console.error("Failed to load games:", err);
+        }
+    }
+
+    loadGames();
+    </script>
 
 {% endblock %}

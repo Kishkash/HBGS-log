@@ -26,8 +26,10 @@ app.secret_key = SECRET_KEY
 
 
 def get_db():
+    """Opens a connection to the database file in g(flask storage) and returns it"""
     if "db" not in g:
         g.db = sqlite3.connect(DB_PATH)
+        # makes rows behave as tuples AND dictionaries
         g.db.row_factory = sqlite3.Row
         g.db.execute("PRAGMA foreign_keys = ON;")
     return g.db
@@ -35,12 +37,14 @@ def get_db():
 
 @app.teardown_appcontext
 def close_db(exc):
+    """On teardown closes the db connection"""
     db = g.pop("db", None)
     if db is not None:
         db.close()
 
 
 def init_db():
+    """On first run creates the database file from the schema"""
     with app.app_context():
         db = get_db()
         with open("schema.sql", "r") as f:
@@ -48,16 +52,10 @@ def init_db():
         db.commit()
 
 
+# ---------- Admin: manage BGG users ----------
+
 def require_admin(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if not session.get("is_admin"):
-            abort(401)
-        return func(*args, **kwargs)
-    return wrapper
-
-
-def require_admin_page(func):
+    """Allows only the admin to use a function"""
     @wraps(func)
     def wrapper(*args, **kwargs):
         if not session.get("is_admin"):
@@ -66,12 +64,10 @@ def require_admin_page(func):
     return wrapper
 
 
-# ---------- Admin: manage BGG users ----------
-
 @app.route("/admin")
-@require_admin_page
+@require_admin
 def admin_dashboard():
-
+    """Renders the admin page"""
     db = get_db()
     users = db.execute("SELECT id, username, last_full_scan FROM bgg_users ORDER BY username").fetchall()
 
@@ -96,19 +92,10 @@ def admin_logout():
     return redirect(url_for("admin_login"))
 
 
-@app.route("/api/admin/users", methods=["GET"])
-@require_admin
-def list_users():
-    db = get_db()
-    rows = db.execute(
-        "SELECT id, username, last_full_scan FROM bgg_users ORDER BY username"
-    ).fetchall()
-    return jsonify([dict(r) for r in rows])
-
-
 @app.route("/api/admin/users", methods=["POST"])
 @require_admin
 def add_user():
+    """Adds a bgg username to the database"""
     data = request.get_json(force=True)
     username = data.get("username")
     if not username:
@@ -137,6 +124,7 @@ def add_user():
 @app.route("/api/admin/users/<int:user_id>", methods=["DELETE"])
 @require_admin
 def delete_user(user_id):
+    """Deletes a user from the database, deletes all the user's plays as well due to foreign key cascade."""
     db = get_db()
     db.execute(
         "DELETE FROM bgg_users WHERE id=?",
@@ -149,6 +137,8 @@ def delete_user(user_id):
 @app.route("/api/admin/fullscan/<username>", methods=["POST"])
 @require_admin
 def admin_full_scan(username):
+    """Performs a full scan of a user's plays from the START_DATE onwards. Deletes all the user's existing plays
+    from the database and logs everything again."""
     db = get_db()
 
     # Get user id
@@ -158,7 +148,7 @@ def admin_full_scan(username):
     ).fetchone()
 
     if not user:
-        return []  # user inactive or missing
+        return jsonify({"status": "full scan failed, user doesn't exist", "user": username})
 
     user_id = user["id"]
 
@@ -174,20 +164,13 @@ def admin_full_scan(username):
     # Re-insert plays
     update_plays(plays, full_scan=True)
 
-    today = datetime.today().isoformat(timespec="seconds")
-
-    db.execute(
-        "UPDATE bgg_users SET last_full_scan=? WHERE id=?",
-        (today, user_id)
-    )
-    db.commit()
-
     return jsonify({"status": "full scan complete", "user": username})
 
 
 @app.route("/api/admin/run_cron", methods=["POST"])
 @require_admin
 def api_run_cron():
+    """Manually updates plays for all users for the last RESCAN_DAYS"""
     # Call existing cron logic
     response = cron_update()
 
@@ -196,7 +179,9 @@ def api_run_cron():
 
 # ---------- BGG fetching & cron endpoint ----------
 def fetch_plays_for_user(username: str, user_id: int, full_scan: bool):
-    # Re-scan window (days)
+    """Helper function, used in cron_update and admin_full_scan. Calls the bgg api, retrieving play elements
+    from each page of the user's logged plays, until reaching the cutoff date."""
+
     if full_scan:
         cutoff_date = START_DATE
     else:
@@ -227,13 +212,6 @@ def fetch_plays_for_user(username: str, user_id: int, full_scan: bool):
         play_elems = root.findall("play")
 
         if not play_elems:
-            break
-
-        # If the newest play on this page is older than the cutoff, stop fetching more pages
-        page_newest_date = play_elems[0].attrib.get("date")
-
-        if page_newest_date < START_DATE:
-            print("Reached cutoff year, stopping API calls")
             return new_plays
 
         for p in play_elems:
@@ -254,8 +232,6 @@ def fetch_plays_for_user(username: str, user_id: int, full_scan: bool):
 
             game_id = int(item.attrib.get("objectid"))
 
-            # TODO: check game exists?
-
             new_plays.append({
                 "id": play_id,
                 "game_id": game_id,
@@ -270,17 +246,24 @@ def fetch_plays_for_user(username: str, user_id: int, full_scan: bool):
 
 
 def update_plays(plays, full_scan: bool):
-    """Helper function that actually logs the plays - used in cron_update and admin_full_scan"""
+    """Helper function that actually logs the plays - used in cron_update and admin_full_scan.
+    It first checks the game exists in the games table, to make sure game_id exists so the log doesn't fail
+    because of the foreign key. If the game doesn't exist calls the fetch_game_info helper function."""
+
     db = get_db()
+    # Save the id of every play to later check for deleted plays
+    bgg_ids = set()
 
     for p in plays:
+        bgg_ids.add(p["id"])
+
         # Insert play if not already present
         exists = db.execute(
             "SELECT 1 FROM plays WHERE id=?",
             (p["id"],)
         ).fetchone()
 
-        # Remove if location changed
+        # Remove play if location changed
         if exists and p["location"] != GAME_LOCATION:
             db.execute(
                 "DELETE FROM plays WHERE id=?",
@@ -302,6 +285,7 @@ def update_plays(plays, full_scan: bool):
                     (p["game_id"], info["name"], info["image_url"])
                 )
 
+            # Insert play data to db
             db.execute(
                 "INSERT INTO plays (id, game_id, play_date, user_id) VALUES (?, ?, ?, ?)",
                 (p["id"], p["game_id"], p["play_date"], p["user_id"])
@@ -322,18 +306,17 @@ def update_plays(plays, full_scan: bool):
                 )
             )
 
-    # --- Detect deleted plays ---
+    # Detect deleted plays
     if plays:
         user_id = plays[0]["user_id"]
 
-        bgg_ids = {p["id"] for p in plays}
-
-        # set ids to check depending on full or partial scan (date window)
+        # Set the time period to check
         if full_scan:
             cutoff = START_DATE
         else:
             cutoff = (datetime.today() - timedelta(days=RESCAN_DAYS)).isoformat()
 
+        # Get user's play ids for the chosen time period
         db_ids = {
             row["id"]
             for row in db.execute(
@@ -342,15 +325,27 @@ def update_plays(plays, full_scan: bool):
             ).fetchall()
         }
 
+        # Compare user's current play ids with the ones in the db to find deleted ids
         deleted_ids = db_ids - bgg_ids
 
         for play_id in deleted_ids:
             db.execute("DELETE FROM plays WHERE id=?", (play_id,))
 
+        # Update last_full_scan if full scan
+        if full_scan:
+            today = datetime.today().isoformat(timespec="seconds")
+            db.execute(
+                "UPDATE bgg_users SET last_full_scan=? WHERE id=?",
+                (today, user_id)
+            )
+
     db.commit()
 
 
 def fetch_game_info(game_id: int):
+    """Helper function that calls the bgg api to get a game's info by its id, returns the game's name and box image.
+    Used in update_plays."""
+
     headers = {
         "Authorization": f"Bearer {BGG_TOKEN}"
     }
@@ -395,7 +390,8 @@ def fetch_game_info(game_id: int):
 
 
 def cron_update():
-    print("CRON UPDATE CALLED")
+    """Updates the plays in the database for all the users. If user was never scanned - performs full scan
+     otherwise timeframe is RESCAN_DAYS. Used manually by admin and from outside the app by cron jobs."""
 
     db = get_db()
     users = db.execute("SELECT username, id, last_full_scan FROM bgg_users").fetchall()
@@ -407,31 +403,35 @@ def cron_update():
     for row in users:
         username = row["username"]
         user_id = row["id"]
+        # If user was never scanned perform full scan
         full_scan = True if (row["last_full_scan"] is None) else False
         plays = fetch_plays_for_user(username, user_id, full_scan=full_scan)
         update_plays(plays, full_scan)
 
-        if row["last_full_scan"] is None:
-            today = datetime.today().isoformat(timespec="seconds")
-            db.execute(
-                "UPDATE bgg_users SET last_full_scan=? WHERE id=?",
-                (today, user_id)
-            )
-            db.commit()
-
     return {"status": "ok"}
 
 
-# ---------- INDEX ----------
+# ---------- Top Bar Routes ----------
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
 
+@app.route("/game-stats")
+def game_stats():
+    return render_template("stats.html")
+
+
+@app.route("/contact")
+def contact():
+    return render_template("contact.html")
+
+
 # ---------- Stats API ----------
 @app.route("/api/stats", methods=["GET"])
 def stats():
+    """Gets the required plays from the db to display on the website."""
     period = request.args.get("period", "overall")  # overall, year, month, date
     year = request.args.get("year")
     month = request.args.get("month")

@@ -14,7 +14,6 @@
                 <thead class="table-light">
                     <tr>
                         <th>Username</th>
-                        <th>Status</th>
                         <th>Last Full Scan</th>
                         <th class="text-end">Actions</th>
                     </tr>
@@ -23,9 +22,6 @@
                     {% for u in users %}
                     <tr>
                         <td>{{ u.username }}</td>
-                        <td>
-                            <span class="badge bg-success">Active</span>
-                        </td>
                         <td>{{ u.last_full_scan or "Never" }}</td>
                         <td class="text-end">
 
