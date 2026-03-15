@@ -21,39 +21,64 @@
 
 
     <script>
-    // Returns YYYY-MM-DD for:
-    // - last week's Monday if today is Monday
-    // - this week's Monday otherwise
-    function getRelevantMonday() {
-        const today = new Date();
-        const day = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+        // Returns YYYY-MM-DD for:
+        // - last week's Monday if today is Monday
+        // - this week's Monday otherwise
+        function getRelevantMonday() {
+            const today = new Date();
+            const day = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
 
-        const monday = new Date();
+            const monday = new Date();
 
-        if (day === 1) {
-            // Today is Monday → go back 7 days
-            monday.setDate(today.getDate() - 7);
-        } else {
-            // Any other day → go back to this week's Monday
-            // Sunday (0) should go back 6 days
-            const daysSinceMonday = (day === 0) ? 6 : (day - 1);
-            monday.setDate(today.getDate() - daysSinceMonday);
+            if (day === 1) {
+                // Today is Monday → go back 7 days
+                monday.setDate(today.getDate() - 7);
+            } else {
+                // Any other day → go back to this week's Monday
+                const daysSinceMonday = (day === 0) ? 6 : (day - 1);
+                monday.setDate(today.getDate() - daysSinceMonday);
+            }
+
+            return monday.toISOString().slice(0, 10);
         }
 
-        return monday.toISOString().slice(0, 10);
-    }
-
-    async function loadGames() {
-        const date = getRelevantMonday();
-        const url = `/api/stats?period=date&date=${date}`;
-
-        try {
+        async function fetchGamesForMonday(date) {
+            const url = `/api/stats?period=date&date=${date}`;
             const response = await fetch(url);
-            const games = await response.json();
+            return response.json();
+        }
 
+        async function loadGames() {
             const grid = document.getElementById("games-grid");
             grid.innerHTML = "";
 
+            let monday = new Date(getRelevantMonday());
+            let attempts = 0;
+            let games = [];
+
+            while (attempts < 3) {
+                const dateStr = monday.toISOString().slice(0, 10);
+                games = await fetchGamesForMonday(dateStr);
+
+                if (games.length > 0) {
+                    break; // Success
+                }
+
+                // Go back one more week
+                monday.setDate(monday.getDate() - 7);
+                attempts++;
+            }
+
+            if (games.length === 0) {
+                grid.innerHTML = `
+                    <div class="text-center mt-3" style="font-size: 1.2rem;">
+                        No games played last week.
+                    </div>
+                `;
+                return;
+            }
+
+            // Render games
             games.forEach(game => {
                 const col = document.createElement("div");
                 col.className = "col";
@@ -66,13 +91,9 @@
 
                 grid.appendChild(col);
             });
-
-        } catch (err) {
-            console.error("Failed to load games:", err);
         }
-    }
 
-    loadGames();
+        loadGames();
     </script>
 
 {% endblock %}

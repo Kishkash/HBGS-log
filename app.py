@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_PATH = "bgg_group.db"
+DB_PATH = os.environ.get("DB_PATH")
 BGG_TOKEN = os.environ.get("BGG_TOKEN")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 SECRET_KEY = os.environ.get("FLASK_SECRET_KEY")
