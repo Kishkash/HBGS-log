@@ -9,7 +9,7 @@
     </div>
 
     <div class="games-section-lower">
-        <div class="section-title text-center">Games played last week:</div>
+        <div class="section-title text-center">Recently played games:</div>
 
         <!-- Collage container -->
 
@@ -21,64 +21,22 @@
 
 
     <script>
-        // Returns YYYY-MM-DD for:
-        // - last week's Monday if today is Monday
-        // - this week's Monday otherwise
-        function getRelevantMonday() {
-            const today = new Date();
-            const day = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-
-            const monday = new Date();
-
-            if (day === 1) {
-                // Today is Monday → go back 7 days
-                monday.setDate(today.getDate() - 7);
-            } else {
-                // Any other day → go back to this week's Monday
-                const daysSinceMonday = (day === 0) ? 6 : (day - 1);
-                monday.setDate(today.getDate() - daysSinceMonday);
-            }
-
-            return monday.toISOString().slice(0, 10);
-        }
-
-        async function fetchGamesForMonday(date) {
-            const url = `/api/stats?period=date&date=${date}`;
-            const response = await fetch(url);
-            return response.json();
-        }
-
         async function loadGames() {
             const grid = document.getElementById("games-grid");
             grid.innerHTML = "";
 
-            let monday = new Date(getRelevantMonday());
-            let attempts = 0;
-            let games = [];
-
-            while (attempts < 3) {
-                const dateStr = monday.toISOString().slice(0, 10);
-                games = await fetchGamesForMonday(dateStr);
-
-                if (games.length > 0) {
-                    break; // Success
-                }
-
-                // Go back one more week
-                monday.setDate(monday.getDate() - 7);
-                attempts++;
-            }
+            const response = await fetch("/api/stats?period=recent");
+            const games = await response.json();
 
             if (games.length === 0) {
                 grid.innerHTML = `
                     <div class="text-center mt-3" style="font-size: 1.2rem;">
-                        No games played last week.
+                        No games found.
                     </div>
                 `;
                 return;
             }
 
-            // Render games
             games.forEach(game => {
                 const col = document.createElement("div");
                 col.className = "col";
@@ -94,6 +52,7 @@
         }
 
         loadGames();
+
     </script>
 
 {% endblock %}

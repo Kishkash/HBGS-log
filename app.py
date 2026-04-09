@@ -19,6 +19,7 @@ GAME_LOCATION = os.environ.get("GAME_LOCATION")
 START_YEAR = os.environ.get("START_YEAR")
 START_DATE = f"{START_YEAR}-01-01"
 RESCAN_DAYS = 14
+GAME_LIMIT = 200
 
 app = Flask(__name__)
 
@@ -278,7 +279,6 @@ def update_plays(plays, full_scan: bool):
             ).fetchone()
 
             if game is None:
-                print("Fetching game info from BGG:", p["game_id"])
                 info = fetch_game_info(p["game_id"])
                 db.execute(
                     "INSERT INTO games (id, name, image_url) VALUES (?, ?, ?)",
@@ -381,8 +381,6 @@ def fetch_game_info(game_id: int):
     image_elem = item.find("image")
     image_url = image_elem.text if image_elem is not None else None
 
-    print("GAME INFO FETCHED:", name, image_url)
-
     return {
         "name": name,
         "image_url": image_url
@@ -440,6 +438,7 @@ def stats():
     db = get_db()
     where = []
     params = []
+    limit = GAME_LIMIT
 
     if period == "year" and year:
         where.append("substr(plays.play_date,1,4) = ?")
@@ -450,6 +449,10 @@ def stats():
     elif period == "date" and date:
         where.append("plays.play_date = ?")
         params.append(date)
+    elif period == "recent":
+        limit = 10
+
+    params.append(limit)
 
     where_clause = "WHERE " + " AND ".join(where) if where else ""
 
@@ -465,6 +468,7 @@ def stats():
         {where_clause}
         GROUP BY plays.game_id, games.name, games.image_url
         ORDER BY plays DESC, last_play_date DESC
+        LIMIT (?)
     """
 
     rows = db.execute(sql, params).fetchall()
