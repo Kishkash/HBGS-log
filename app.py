@@ -15,11 +15,21 @@ DB_PATH = os.environ.get("DB_PATH")
 BGG_TOKEN = os.environ.get("BGG_TOKEN")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 SECRET_KEY = os.environ.get("FLASK_SECRET_KEY")
+# Sets the location the app is looking for in bgg logged plays
 GAME_LOCATION = os.environ.get("GAME_LOCATION")
+# Variables setting the limits for scanning plays
 START_YEAR = os.environ.get("START_YEAR")
 START_DATE = f"{START_YEAR}-01-01"
 RESCAN_DAYS = 14
+# Max games displayed on site
 GAME_LIMIT = 200
+# Variable for locking admin login
+ALLOWED_ATTEMPTS = 5
+LOCK_TIME = 5
+FAILED_ATTEMPTS = {
+    "count": 0,
+    "locked_until": None
+}
 
 app = Flask(__name__)
 
@@ -77,12 +87,45 @@ def admin_dashboard():
 
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
+    now = datetime.now()
+
+    # Check if account is locked
+    if FAILED_ATTEMPTS["locked_until"] and now < FAILED_ATTEMPTS["locked_until"]:
+        remaining = FAILED_ATTEMPTS["locked_until"] - now
+        minutes = int(remaining.total_seconds() // 60) + 1
+        return render_template(
+            "admin_login.html",
+            error=f"Account locked. Try again in {minutes} minutes."
+        )
+    # If locked, after "locked_until" has passed, reset
+    elif FAILED_ATTEMPTS["locked_until"]:
+        FAILED_ATTEMPTS["count"] = 0
+        FAILED_ATTEMPTS["locked_until"] = None
+
     if request.method == "POST":
         password = request.form.get("password")
+
         if password == ADMIN_PASSWORD:
+            # Reset failed attempts
+            FAILED_ATTEMPTS["count"] = 0
+
             session["is_admin"] = True
             return redirect(url_for("admin_dashboard"))
-        return render_template("admin_login.html", error="Invalid password")
+
+        # Failed password
+        FAILED_ATTEMPTS["count"] += 1
+
+        if FAILED_ATTEMPTS["count"] >= ALLOWED_ATTEMPTS:
+            FAILED_ATTEMPTS["locked_until"] = now + timedelta(minutes=LOCK_TIME)
+            return render_template(
+                "admin_login.html",
+                error=F"Too many failed attempts. Account locked for {LOCK_TIME} minutes."
+            )
+
+        return render_template(
+            "admin_login.html",
+            error="Invalid password"
+        )
 
     return render_template("admin_login.html")
 
