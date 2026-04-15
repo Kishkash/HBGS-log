@@ -23,6 +23,7 @@ START_DATE = f"{START_YEAR}-01-01"
 RESCAN_DAYS = 14
 # Max games displayed on site
 GAME_LIMIT = 200
+HOMEPAGE_GAMES_LIMIT = 10
 # Variable for locking admin login
 ALLOWED_ATTEMPTS = 5
 LOCK_TIME = 5
@@ -493,11 +494,12 @@ def stats():
         where.append("plays.play_date = ?")
         params.append(date)
     elif period == "recent":
-        limit = 10
+        limit = HOMEPAGE_GAMES_LIMIT
 
     params.append(limit)
 
     where_clause = "WHERE " + " AND ".join(where) if where else ""
+    order_clause = " plays DESC," if period != "recent" else ""
 
     sql = f"""
         SELECT 
@@ -510,7 +512,7 @@ def stats():
         JOIN games ON plays.game_id = games.id
         {where_clause}
         GROUP BY plays.game_id, games.name, games.image_url
-        ORDER BY plays DESC, last_play_date DESC
+        ORDER BY{order_clause} last_play_date DESC
         LIMIT (?)
     """
 
